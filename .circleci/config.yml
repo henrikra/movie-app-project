@@ -1,19 +1,49 @@
-version: 2
+version: 2.1
+
+executors:
+  node-executor:
+    docker:
+      - image: circleci/node:8.15
+
 jobs:
   build:
-    docker:
-      - image: node:8.15.0-alpine
+    executor: node-executor
     steps:
       - checkout
-      - run: 
+      - run:
           name: Install dependencies
           command: npm ci
       - run:
-          name: Run build
+          name: Build
           command: npm run build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build
+            - node_modules
+  deploy:
+    executor: node-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Setup Git user
+          command: |
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
+      - run:
+          name: Deploy
+          command: npm run deploy
+
 workflows:
-  version: 2
-  install_and_build:
+  version: 2.1
+  build_and_deploy:
     jobs:
       - build
-
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
